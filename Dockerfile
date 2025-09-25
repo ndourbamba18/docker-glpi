@@ -40,14 +40,28 @@ RUN apt update \
 RUN wget -q https://github.com/glpi-project/glpi/releases/download/10.0.20/glpi-10.0.20.tgz -O /tmp/glpi.tgz \
  && tar -xzf /tmp/glpi.tgz -C /var/www/html/ \
  && rm /tmp/glpi.tgz \
+ && mv /var/www/html/glpi /var/www/html/glpi-original \
+ && mkdir -p /var/www/html/glpi \
+ && cp -r /var/www/html/glpi-original/* /var/www/html/glpi/ \
+ && rm -rf /var/www/html/glpi-original \
  && chown -R 1001:0 /var/www/html/glpi
 
-# Adapter apache pour port non-privilégié
+# Configurer Apache pour servir GLPI depuis la racine
 RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
- && sed -i 's/:80/:8080/g' /etc/apache2/sites-available/000-default.conf \
+ && sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/glpi|' /etc/apache2/sites-available/000-default.conf \
+ && sed -i 's|:80>|:8080>|' /etc/apache2/sites-available/000-default.conf \
+ && echo "ServerName localhost" >> /etc/apache2/apache2.conf \
+ && echo "<Directory /var/www/html/glpi>" >> /etc/apache2/apache2.conf \
+ && echo "    Options FollowSymlinks" >> /etc/apache2/apache2.conf \
+ && echo "    AllowOverride All" >> /etc/apache2/apache2.conf \
+ && echo "    Require all granted" >> /etc/apache2/apache2.conf \
+ && echo "</Directory>" >> /etc/apache2/apache2.conf \
  && a2enmod rewrite \
- && chown -R 1001:0 /etc/apache2 /etc/php /var/log/apache2 /var/run/apache2 \
+ && chown -R 1001:0 /etc/apache2 /etc/php /var/log/apache2 /var/run/apache2 /var/www/html \
  && chmod -R g+rwX /var/www/html /etc/apache2 /etc/php /var/log/apache2 /var/run/apache2
+
+# Créer un fichier index.php redirigeant vers GLPI
+RUN echo "<?php header('Location: /glpi/'); ?>" > /var/www/html/index.php
 
 # L'utilisateur OpenShift
 USER 1001
@@ -55,5 +69,5 @@ USER 1001
 # Port 8080
 EXPOSE 8080
 
-# Lancer apache directement (plus de glpi-start.sh)
+# Lancer apache
 CMD ["apache2ctl", "-D", "FOREGROUND"]

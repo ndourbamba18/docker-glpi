@@ -1,4 +1,3 @@
-# On choisit une debian
 FROM debian:12.5
 
 LABEL org.opencontainers.image.authors="github@diouxx.be"
@@ -6,7 +5,6 @@ LABEL org.opencontainers.image.authors="github@diouxx.be"
 ENV DEBIAN_FRONTEND=noninteractive \
     TIMEZONE=Africa/Dakar
 
-# Installation apache + php
 RUN apt update \
  && apt install --yes ca-certificates apt-transport-https lsb-release wget curl \
  && curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg \
@@ -41,22 +39,21 @@ RUN apt update \
 # Télécharger et installer GLPI pendant le build
 RUN wget -q https://github.com/glpi-project/glpi/releases/download/10.0.20/glpi-10.0.20.tgz -O /tmp/glpi.tgz \
  && tar -xzf /tmp/glpi.tgz -C /var/www/html/ \
- && mv /var/www/html/glpi /var/www/html/glpi-app \
- && rm /tmp/glpi.tgz
+ && rm /tmp/glpi.tgz \
+ && chown -R 1001:0 /var/www/html/glpi
 
 # Adapter apache pour port non-privilégié
 RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
- && sed -i 's/:80/:8080/g' /etc/apache2/sites-available/000-default.conf
-
-# Rendre writable par utilisateur OpenShift
-RUN chown -R 1001:0 /var/www/html /etc/apache2 /etc/php /var/log/apache2 /var/run/apache2 \
+ && sed -i 's/:80/:8080/g' /etc/apache2/sites-available/000-default.conf \
+ && a2enmod rewrite \
+ && chown -R 1001:0 /etc/apache2 /etc/php /var/log/apache2 /var/run/apache2 \
  && chmod -R g+rwX /var/www/html /etc/apache2 /etc/php /var/log/apache2 /var/run/apache2
 
-# Copier ton script si besoin pour entrypoint (mais il ne doit plus installer glpi)
-COPY glpi-start.sh /opt/
-RUN chmod +x /opt/glpi-start.sh
-
+# L'utilisateur OpenShift
 USER 1001
 
+# Port 8080
 EXPOSE 8080
-ENTRYPOINT ["/opt/glpi-start.sh"]
+
+# Lancer apache directement (plus de glpi-start.sh)
+CMD ["apache2ctl", "-D", "FOREGROUND"]

@@ -62,7 +62,7 @@ RUN sed -i 's/Listen 80/Listen 8080/' /etc/apache2/ports.conf \
  && a2enmod rewrite
 
 # --- Création du répertoire et permissions pour OpenShift ---
-RUN mkdir -p /var/www/html/glpi/config /var/www/html/glpi/files /var/www/html/glpi/marketplace \
+RUN mkdir -p /var/www/html/glpi/config /var/www/html/glpi/files /var/www/html/glpi/plugins /var/www/html/glpi/marketplace \
  && chown -R 1001:0 /var/www/html /etc/apache2 /etc/php /var/log/apache2 /var/run/apache2 \
  && chmod -R g+rwX /var/www/html /etc/apache2 /etc/php /var/log/apache2 /var/run/apache2
 
